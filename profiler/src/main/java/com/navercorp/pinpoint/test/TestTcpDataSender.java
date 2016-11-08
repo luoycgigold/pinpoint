@@ -15,6 +15,7 @@
 package com.navercorp.pinpoint.test;
 
 import com.navercorp.pinpoint.profiler.sender.EnhancedDataSender;
+import com.navercorp.pinpoint.profiler.util.ApiUtils;
 import com.navercorp.pinpoint.rpc.FutureListener;
 import com.navercorp.pinpoint.rpc.ResponseMessage;
 import com.navercorp.pinpoint.rpc.client.PinpointClientReconnectEventListener;
@@ -35,13 +36,13 @@ import java.util.NoSuchElementException;
 
 /**
  * @author Jongho Moon
- *
+ * @author jaehong.kim
  */
 public class TestTcpDataSender implements EnhancedDataSender {
     private final List<TBase<?, ?>> datas = new ArrayList<TBase<?, ?>>();
     private final Map<Integer, String> apiIdMap = new HashMap<Integer, String>();
     private final Map<String, Integer> apiDescriptionMap = new HashMap<String, Integer>();
-    
+
     private final Map<String, Integer> sqlMap = new HashMap<String, Integer>();
     private final Map<Integer, String> sqlIdMap = new HashMap<Integer, String>();
     
@@ -56,7 +57,7 @@ public class TestTcpDataSender implements EnhancedDataSender {
         }
         
     };
-    
+
 
     @Override
     public boolean send(TBase<?, ?> data) {
@@ -72,9 +73,10 @@ public class TestTcpDataSender implements EnhancedDataSender {
             if (md.getLine() != -1) {
                 api += ":" + md.getLine();
             }
-            
+
             apiIdMap.put(md.getApiId(), api);
-            apiDescriptionMap.put(api, md.getApiId());
+            final String key = createApiMatchingKey(md);
+            apiDescriptionMap.put(key, md.getApiId());
         } else if (data instanceof TSqlMetaData) {
             TSqlMetaData md = (TSqlMetaData)data;
             
@@ -94,6 +96,23 @@ public class TestTcpDataSender implements EnhancedDataSender {
         }
         
         datas.add(data);
+    }
+
+    private String createApiMatchingKey(TApiMetaData apiMetaData) {
+//        1st method type check
+//        int type = apiMetaData.getType();
+//        if (type != MethodType.DEFAULT) {
+//            return apiMetaData.getApiInfo();
+//        }
+
+//       2st Descriptor check
+        String apiInfo = apiMetaData.getApiInfo();
+        if (apiInfo.indexOf('(') == -1) {
+            // exceptional case
+            // eg : async or internal tag api
+            return apiInfo;
+        }
+        return ApiUtils.toMethodDescriptor(apiInfo);
     }
 
     @Override
